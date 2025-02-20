@@ -53,6 +53,7 @@ postprocessor.postprocess(
 )
 
 fig01 = plotter.visualize_time_evolution(quantities=["total_energy_current_time"])
-fig02 = plotter.visualize_time_evolution(quantities=["total_energy_interval_increment"])
 fig01.show()
+
+fig02 = plotter.visualize_time_evolution(quantities=["total_energy_interval_increment"])
 fig02.show()
