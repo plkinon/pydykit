@@ -1,8 +1,8 @@
 import plotly.graph_objects as go
 
 import pydykit
-import pydykit.postprocessors as postprocessors
 import pydykit.plotters as plotters
+import pydykit.postprocessors as postprocessors
 
 manager = pydykit.managers.Manager()
 
