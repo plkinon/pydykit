@@ -76,6 +76,23 @@ class GonzalezDecomposedDiscreteGradient(abstract_base_classes.DiscreteGradient)
         return np.concatenate(discrete_gradient, axis=0)
 
 
+class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
+    def compute(
+        self,
+        system_n,
+        system_n1,
+        system_n05,
+        func_name: str,
+        jacobian_name: str,
+        argument_n: np.ndarray,
+        argument_n1: np.ndarray,
+        increment_tolerance: float = 1e-12,
+        **kwargs,
+    ) -> np.ndarray:
+
+        return
+
+
 class DiscreteGradientFactory:
     """Factory for creating discrete gradient instances."""
 
@@ -159,3 +176,47 @@ def adjust_midpoint_jacobian(midpoint_jacobian, func_n, func_n1):
             np.array([func_n1]),
         )
     return midpoint_jacobian, func_n, func_n1
+
+
+def gauss_integrate_scalar_function(
+    func, quad_order, funcargs=[], funckwargs={}
+) -> np.ndarray:
+    """Helper function to integrate scalar-valued func(x, *funcargs, **funckwargs) from x=0 to x=1"""
+    # evaluation points and weights
+    x_i, weights = {
+        2: (np.array([-1 / np.sqrt(3), 1 / np.sqrt(3)]), np.array([1, 1])),
+        3: (
+            np.array([-np.sqrt(3 / 5), 0, np.sqrt(3 / 5)]),
+            np.array([5 / 9, 8 / 9, 5 / 9]),
+        ),
+        5: (
+            np.array(
+                [
+                    -np.sqrt(5 + 2 * np.sqrt(10 / 7)) / 3,
+                    -np.sqrt(5 - 2 * np.sqrt(10 / 7)) / 3,
+                    0,
+                    np.sqrt(5 - 2 * np.sqrt(10 / 7)) / 3,
+                    np.sqrt(5 + 2 * np.sqrt(10 / 7)) / 3,
+                ]
+            ),
+            np.array(
+                [
+                    (322 - 13 * np.sqrt(70)) / (900),
+                    (322 + 13 * np.sqrt(70)) / (900),
+                    128 / 225,
+                    (322 + 13 * np.sqrt(70)) / (900),
+                    (322 - 13 * np.sqrt(70)) / (900),
+                ]
+            ),
+        ),
+    }[quad_order]
+
+    return (
+        sum(
+            [
+                func(0.5 * x_i[i] + 0.5, *funcargs, **funckwargs) * weights[i]
+                for i in range(0, quad_order)
+            ]
+        )
+        * 0.5
+    )
