@@ -89,8 +89,13 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
         increment_tolerance: float = 1e-12,
         **kwargs,
     ) -> np.ndarray:
+        jacobian_n = getattr(system_n, jacobian_name)()
+        jacobian_n1 = getattr(system_n1, jacobian_name)()
 
-        return
+        discrete_gradient = gauss_integrate_function(
+            interpolate_vectors, 5, [jacobian_n, jacobian_n1]
+        )
+        return discrete_gradient
 
 
 class DiscreteGradientFactory:
@@ -102,6 +107,8 @@ class DiscreteGradientFactory:
             return GonzalezDiscreteGradient()
         elif type == "Gonzalez_decomposed":
             return GonzalezDecomposedDiscreteGradient()
+        elif type == "MeanValue":
+            return MeanValueDiscreteGradient()
         else:
             raise ValueError(f"Unsupported discrete gradient type: {type}")
 
@@ -178,11 +185,17 @@ def adjust_midpoint_jacobian(midpoint_jacobian, func_n, func_n1):
     return midpoint_jacobian, func_n, func_n1
 
 
-def gauss_integrate_scalar_function(
+def interpolate_vectors(loc: float, vec1: np.ndarray, vec2: np.ndarray) -> np.ndarray:
+    """Helper function to linearly interpolate between vectors vec1 and vec2"""
+    return np.multiply(1 - loc, vec1) + np.multiply(loc, vec2)
+
+
+def gauss_integrate_function(
     func, quad_order, funcargs=[], funckwargs={}
 ) -> np.ndarray:
-    """Helper function to integrate scalar-valued func(x, *funcargs, **funckwargs) from x=0 to x=1"""
+    """Helper function to integrate func(x, *funcargs, **funckwargs) from x=0 to x=1"""
     # evaluation points and weights
+
     x_i, weights = {
         2: (np.array([-1 / np.sqrt(3), 1 / np.sqrt(3)]), np.array([1, 1])),
         3: (
@@ -211,12 +224,10 @@ def gauss_integrate_scalar_function(
         ),
     }[quad_order]
 
-    return (
-        sum(
-            [
-                func(0.5 * x_i[i] + 0.5, *funcargs, **funckwargs) * weights[i]
-                for i in range(0, quad_order)
-            ]
-        )
-        * 0.5
+    return 0.5 * np.sum(
+        [
+            func(0.5 * x_i[i] + 0.5, *funcargs, **funckwargs) * weights[i]
+            for i in range(0, func(1, *funcargs, **funckwargs).shape[0])
+        ],
+        axis=0,
     )
