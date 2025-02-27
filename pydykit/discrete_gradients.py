@@ -1,4 +1,7 @@
+import time
+
 import numpy as np
+import scipy.integrate
 
 from . import abstract_base_classes
 
@@ -89,12 +92,71 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
         increment_tolerance: float = 1e-12,
         **kwargs,
     ) -> np.ndarray:
-        jacobian_n = getattr(system_n, jacobian_name)()
-        jacobian_n1 = getattr(system_n1, jacobian_name)()
+        quad_order = 5
+        system_factory = kwargs.pop("system_factory")
+        evaluate = lambda state: getattr(system_factory(state), jacobian_name)()
+        # self-written gauss integration
+        """discrete_gradient = gauss_integrate_function(
+            func=evaluate, quad_order=quad_order
+        )"""
 
-        discrete_gradient = gauss_integrate_function(
-            interpolate_vectors, 5, [jacobian_n, jacobian_n1]
+        # scipy gauss-integration
+        def function_i(t, func, i):
+            return adjust_midpoint_jacobian(func(t)[i], 1, 1)[0]
+
+        discrete_gradient = np.array(
+            [
+                scipy.integrate.quad(
+                    func=function_i,
+                    args=(evaluate, i),
+                    a=0,
+                    b=1,
+                )[0]
+                for i in range(0, len(argument_n))
+            ]
         )
+
+        ### debug - block
+        # print gonzalez-gradient
+        func_n = getattr(system_n, func_name)()
+        func_n1 = getattr(system_n1, func_name)()
+        midpoint_jacobian = getattr(system_n05, jacobian_name)()
+        midpoint_jacobian, func_n, func_n1 = adjust_midpoint_jacobian(
+            midpoint_jacobian, func_n, func_n1
+        )
+        gonz_gradient = Gonzalez_discrete_gradient(
+            func_n,
+            func_n1,
+            midpoint_jacobian,
+            argument_n,
+            argument_n1,
+            increment_tolerance,
+        )
+        # compare gonzalez and mean-value gradient if they differ too much
+        if abs(np.linalg.norm(discrete_gradient - gonz_gradient)) > 1e-10:
+            print(evaluate(0.5), midpoint_jacobian)
+            pass
+        ###
+
+        return discrete_gradient.squeeze()
+
+
+class CoordIncDiscreteGradient(abstract_base_classes.DiscreteGradient):
+    def compute(
+        self,
+        system_n,
+        system_n1,
+        system_n05,
+        func_name: str,
+        jacobian_name: str,
+        argument_n: np.ndarray,
+        argument_n1: np.ndarray,
+        increment_tolerance: float = 1e-12,
+        **kwargs,
+    ) -> np.ndarray:
+        func_n = getattr(system_n, func_name)
+        func_n1 = getattr(system_n1, func_name)
+        # i need to be able to feed my own arguments to func!
         return discrete_gradient
 
 
@@ -109,6 +171,8 @@ class DiscreteGradientFactory:
             return GonzalezDecomposedDiscreteGradient()
         elif type == "MeanValue":
             return MeanValueDiscreteGradient()
+        elif type == "CoordInc":
+            return CoordIncDiscreteGradient()
         else:
             raise ValueError(f"Unsupported discrete gradient type: {type}")
 
@@ -190,13 +254,19 @@ def interpolate_vectors(loc: float, vec1: np.ndarray, vec2: np.ndarray) -> np.nd
     return np.multiply(1 - loc, vec1) + np.multiply(loc, vec2)
 
 
-def gauss_integrate_function(
-    func, quad_order, funcargs=[], funckwargs={}
-) -> np.ndarray:
-    """Helper function to integrate func(x, *funcargs, **funckwargs) from x=0 to x=1"""
-    # evaluation points and weights
+def gauss_integrate_function(func, quad_order, *funcargs, **funckwargs) -> np.ndarray:
+    """Helper function to integrate func(x, *funcargs, **funckwargs) from x=0 to x=1 using gauss integration"""
+    x_i, weights = gauss_constants(quad_order)
+    contributions = [
+        func(0.5 * x + 0.5, funcargs, funckwargs) * weight
+        for x, weight in zip(x_i, weights)
+    ]
+    return 0.5 * np.add.reduce(contributions)
 
-    x_i, weights = {
+
+def gauss_constants(quad_order):
+    """returns (x_i, weights) as a tuple"""
+    return {
         2: (np.array([-1 / np.sqrt(3), 1 / np.sqrt(3)]), np.array([1, 1])),
         3: (
             np.array([-np.sqrt(3 / 5), 0, np.sqrt(3 / 5)]),
@@ -222,12 +292,8 @@ def gauss_integrate_function(
                 ]
             ),
         ),
-    }[quad_order]
+    }.pop(quad_order)
 
-    return 0.5 * np.sum(
-        [
-            func(0.5 * x_i[i] + 0.5, *funcargs, **funckwargs) * weights[i]
-            for i in range(0, func(1, *funcargs, **funckwargs).shape[0])
-        ],
-        axis=0,
-    )
+
+def increment_till_index(index, x0, x1) -> np.ndarray:
+    return np.array([*x1[: index + 1], *x0[index + 1 :]])
