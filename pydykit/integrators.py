@@ -358,7 +358,6 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
-            system_factory=utils.system_factory,
         )
         # print("DV_int")
         DV_int = discrete_gradients.discrete_gradient(
@@ -371,7 +370,6 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
-            system_factory=utils.system_factory,
         )
         # print("DV_ext")
         DV_ext = discrete_gradients.discrete_gradient(
@@ -384,7 +382,6 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
-            system_factory=utils.system_factory,
         )
 
         # residuum contributions
