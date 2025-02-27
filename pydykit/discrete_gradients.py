@@ -94,7 +94,10 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
     ) -> np.ndarray:
         quad_order = 5
         system_factory = kwargs.pop("system_factory")
-        evaluate = lambda state: getattr(system_factory(state), jacobian_name)()
+        evaluate = lambda state: getattr(
+            system_factory(system_n=system_n, system_n1=system_n1, desired_state=state),
+            jacobian_name,
+        )()
         # self-written gauss integration
         """discrete_gradient = gauss_integrate_function(
             func=evaluate, quad_order=quad_order

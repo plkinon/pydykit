@@ -324,15 +324,6 @@ class DiscreteGradientMultibody(IntegratorCommon):
             ],
         )
 
-        # create system-factory
-        def system_factory(desired_state):
-            """desired_state = 0 -> returns system_n; desired_state = 1 -> returns system_n1.
-            otherwise linearly interpolates"""
-            return self.manager.system.copy(
-                state=np.multiply(state_n, (1 - desired_state))
-                + np.multiply(state_n1, desired_state)
-            )
-
         # get inverse mass matrix
         try:
             inv_mass_matrix_n05 = system_n05.inverse_mass_matrix()
@@ -367,7 +358,7 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
-            system_factory=system_factory,
+            system_factory=utils.system_factory,
         )
         # print("DV_int")
         DV_int = discrete_gradients.discrete_gradient(
@@ -380,7 +371,7 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
-            system_factory=system_factory,
+            system_factory=utils.system_factory,
         )
         # print("DV_ext")
         DV_ext = discrete_gradients.discrete_gradient(
@@ -393,7 +384,7 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
-            system_factory=system_factory,
+            system_factory=utils.system_factory,
         )
 
         # residuum contributions

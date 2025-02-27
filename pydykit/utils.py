@@ -140,6 +140,15 @@ def get_system_copies_with_desired_states(
     )
 
 
+def system_factory(system_n, system_n1, desired_state):
+    """desired_state = 0 -> returns system_n; desired_state = 1 -> returns system_n1.
+    otherwise linearly interpolates"""
+    return system_n.copy(
+        state=np.multiply(system_n.state, (1 - desired_state))
+        + np.multiply(system_n1.state, desired_state)
+    )
+
+
 def select(
     position_vectors,
     element,
