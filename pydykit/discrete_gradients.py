@@ -1,4 +1,5 @@
 import time
+from typing import Tuple
 
 import numpy as np
 import scipy.integrate
@@ -25,7 +26,6 @@ class GonzalezDiscreteGradient(abstract_base_classes.DiscreteGradient):
         midpoint_jacobian, func_n, func_n1 = adjust_midpoint_jacobian(
             midpoint_jacobian, func_n, func_n1
         )
-
         return Gonzalez_discrete_gradient(
             func_n,
             func_n1,
@@ -94,7 +94,10 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
     ) -> np.ndarray:
         evaluate = lambda interpolation_value: getattr(
             utils.interpolate_system(
-                system_n, system_n1, interpolation_value=interpolation_value
+                system=system_n,
+                x0=argument_n,
+                x1=argument_n1,
+                interpolation_value=interpolation_value,
             ),
             jacobian_name,
         )()
@@ -107,8 +110,6 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
 
         # scipy gauss-integration
         def get_ith_entry(t, vector_function, i):
-            # print(vector_function(t))
-            # print(vector_function(t)[i])
             return vector_function(t)[i]
 
         discrete_gradient = np.array(
@@ -118,11 +119,12 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
                     args=(evaluate, i),
                     a=0,
                     b=1,
+                    epsabs=1e-12,
+                    epsrel=1e-12,
                 )[0]
                 for i in range(0, len(argument_n))
             ]
         )
-
         ### debug - block
         func_n = getattr(system_n, func_name)()
         func_n1 = getattr(system_n1, func_name)()
@@ -130,7 +132,7 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
         midpoint_jacobian, func_n, func_n1 = adjust_midpoint_jacobian(
             midpoint_jacobian, func_n, func_n1
         )
-        # print gonzalez-gradient
+        # compare gonzalez-gradient
         gonz_gradient = Gonzalez_discrete_gradient(
             func_n,
             func_n1,
@@ -139,18 +141,6 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
             argument_n1,
             increment_tolerance,
         )
-
-        # compare gonzalez and mean-value gradient if they differ too much
-        """
-        if abs(np.linalg.norm(discrete_gradient - gonz_gradient)) > 1e-10:
-            print(discrete_gradient, gonz_gradient)
-            pass
-        """
-        # validate system-factory based on midpoint-jacobian
-        if abs(np.linalg.norm(evaluate(0.5) - midpoint_jacobian)) > 1e-10:
-            print(evaluate(0.5), midpoint_jacobian)
-
-        ###
 
         return discrete_gradient.squeeze()
 
@@ -168,10 +158,28 @@ class CoordIncDiscreteGradient(abstract_base_classes.DiscreteGradient):
         increment_tolerance: float = 1e-12,
         **kwargs,
     ) -> np.ndarray:
-        func_n = getattr(system_n, func_name)
-        func_n1 = getattr(system_n1, func_name)
-        # i need to be able to feed my own arguments to func!
-        return discrete_gradient
+        evaluate_func = lambda state: getattr(system_n.copy(state=state), func_name)()
+        # initialize with midpoint jacobian
+        midpoint_jacobian = getattr(system_n05, jacobian_name)()
+        discrete_gradient = midpoint_jacobian
+        # compute coord-inc-gradient
+        state_n = getattr(system_n, "state")
+        state_n1 = getattr(system_n1, "state")
+        for i in range(discrete_gradient.shape[0]):
+            arg1, arg2 = arguments_coord_inc(index=i, x0=state_n, x1=state_n1)
+            current_variable_initial, current_variable_inc = (
+                state_n[i],
+                state_n1[i],
+            )
+            if (
+                abs(current_variable_inc - current_variable_initial)
+                < increment_tolerance
+            ):
+                continue
+            discrete_gradient[i] = (evaluate_func(arg1) - evaluate_func(arg2)) / (
+                current_variable_inc - current_variable_initial
+            )
+        return discrete_gradient.squeeze()
 
 
 class DiscreteGradientFactory:
@@ -230,9 +238,7 @@ def Gonzalez_discrete_gradient(
     discrete_gradient = midpoint_jacobian
     increment = argument_n1 - argument_n
     denominator = increment.T @ increment
-
     if denominator > denominator_tolerance:
-
         for index in range(midpoint_jacobian.shape[0]):
             discrete_gradient[index, :] += (
                 (
@@ -243,12 +249,10 @@ def Gonzalez_discrete_gradient(
                 / denominator
                 * increment.T
             )
-
         result = discrete_gradient
 
     else:
         result = midpoint_jacobian
-
     return result.squeeze()
 
 
@@ -309,5 +313,8 @@ def gauss_constants(quad_order):
     }.pop(quad_order)
 
 
-def increment_till_index(index, x0, x1) -> np.ndarray:
-    return np.array([*x1[: index + 1], *x0[index + 1 :]])
+def arguments_coord_inc(index, x0, x1) -> Tuple[np.ndarray, np.ndarray]:
+    return (
+        np.array([*x1[: index + 1], *x0[index + 1 :]]),
+        np.array([*x1[:index], *x0[index:]]),
+    )
