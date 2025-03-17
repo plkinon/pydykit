@@ -1,3 +1,4 @@
+import copy
 import re
 
 import numpy as np
@@ -140,12 +141,12 @@ def get_system_copies_with_desired_states(
     )
 
 
-def interpolate_system(system_n, system_n1, interpolation_value):
+def interpolate_system(system, x0, x1, interpolation_value):
     """interpolation_value = 0 -> returns system_n; interpolation_value = 1 -> returns system_n1.
     otherwise linearly interpolates"""
-    return system_n.copy(
-        state=np.multiply(system_n.state, (1 - interpolation_value))
-        + np.multiply(system_n1.state, interpolation_value)
+    return system.copy(
+        state=np.multiply(x0, (1 - interpolation_value))
+        + np.multiply(x1, interpolation_value)
     )
 
 
