@@ -1,6 +1,7 @@
 import numpy as np
 
 from . import abstract_base_classes, discrete_gradients, utils
+from .discrete_gradients import arguments_coord_inc
 
 
 class IntegratorCommon(abstract_base_classes.Integrator):
@@ -323,7 +324,14 @@ class DiscreteGradientMultibody(IntegratorCommon):
                 state_n05,
             ],
         )
-
+        ### temporary block ###
+        required_states = [state_n] + [
+            arguments_coord_inc(i, state_n, state_n1)[0] for i in range(0, 3)
+        ]
+        x0, x1, x2, x3 = utils.get_system_copies_with_desired_states(
+            system=self.manager.system, states=required_states
+        )
+        ###
         # get inverse mass matrix
         try:
             inv_mass_matrix_n05 = system_n05.inverse_mass_matrix()
@@ -347,7 +355,7 @@ class DiscreteGradientMultibody(IntegratorCommon):
         lambd_n05 = system_n05.decompose_state()["multiplier"]
 
         # discrete gradients
-        # print("G_DG")
+        # print("--- G_DG ---")
         G_DG = discrete_gradients.discrete_gradient(
             system_n=system_n,
             system_n1=system_n1,
@@ -358,8 +366,9 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
+            external_systems=[x0, x1, x2, x3],
         )
-        # print("DV_int")
+        # print("--- DV_int ---")
         DV_int = discrete_gradients.discrete_gradient(
             system_n=system_n,
             system_n1=system_n1,
@@ -370,8 +379,9 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
+            external_systems=[x0, x1, x2, x3],
         )
-        # print("DV_ext")
+        # print("--- DV_ext ---")
         DV_ext = discrete_gradients.discrete_gradient(
             system_n=system_n,
             system_n1=system_n1,
@@ -382,6 +392,7 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
+            external_systems=[x0, x1, x2, x3],
         )
 
         # residuum contributions
