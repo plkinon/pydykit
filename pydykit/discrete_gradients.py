@@ -158,13 +158,20 @@ class CoordIncDiscreteGradient(abstract_base_classes.DiscreteGradient):
         increment_tolerance: float = 1e-12,
         **kwargs,
     ) -> np.ndarray:
+        systems = kwargs["external_systems"]
         evaluate_func = lambda state: getattr(system_n.copy(state=state), func_name)()
         # initialize with midpoint jacobian
         midpoint_jacobian = getattr(system_n05, jacobian_name)()
         discrete_gradient = midpoint_jacobian
         # compute coord-inc-gradient
-        state_n = getattr(system_n, "state")
-        state_n1 = getattr(system_n1, "state")
+        for i in range(0, 3):
+            denom = argument_n1[i] - argument_n[i]
+            if denom > 1e-8:
+                discrete_gradient[i] = (
+                    getattr(systems[i + 1], func_name)()
+                    - getattr(systems[i], func_name)()
+                ) / (argument_n1[i] - argument_n[i])
+        """
         for i in range(discrete_gradient.shape[0]):
             arg1, arg2 = arguments_coord_inc(index=i, x0=state_n, x1=state_n1)
             current_variable_initial, current_variable_inc = (
@@ -179,7 +186,62 @@ class CoordIncDiscreteGradient(abstract_base_classes.DiscreteGradient):
             discrete_gradient[i] = (evaluate_func(arg1) - evaluate_func(arg2)) / (
                 current_variable_inc - current_variable_initial
             )
+        """
         return discrete_gradient.squeeze()
+
+
+class DebugDiscreteGradient:
+    def compute(
+        self,
+        system_n,
+        system_n1,
+        system_n05,
+        func_name: str,
+        jacobian_name: str,
+        argument_n: np.ndarray,
+        argument_n1: np.ndarray,
+        increment_tolerance: float = 1e-12,
+        **kwargs,
+    ):
+        gonzalez_gradient = GonzalezDiscreteGradient().compute(
+            system_n=system_n,
+            system_n1=system_n1,
+            system_n05=system_n05,
+            func_name=func_name,
+            jacobian_name=jacobian_name,
+            argument_n=argument_n,
+            argument_n1=argument_n1,
+            increment_tolerance=increment_tolerance,
+            **kwargs,
+        )
+        """
+        meanvalue_gradient = MeanValueDiscreteGradient().compute(
+            system_n=system_n,
+            system_n1=system_n1,
+            system_n05=system_n05,
+            func_name=func_name,
+            jacobian_name=jacobian_name,
+            argument_n=argument_n,
+            argument_n1=argument_n1,
+            increment_tolerance=increment_tolerance,
+            **kwargs,
+        )
+
+        coordinc_gradient = CoordIncDiscreteGradient().compute(
+            system_n=system_n,
+            system_n1=system_n1,
+            system_n05=system_n05,
+            func_name=func_name,
+            jacobian_name=jacobian_name,
+            argument_n=argument_n,
+            argument_n1=argument_n1,
+            increment_tolerance=increment_tolerance,
+            **kwargs,
+        )
+        """
+        if func_name == "internal_potential":
+            print(getattr(system_n, func_name)())
+        return gonzalez_gradient
 
 
 class DiscreteGradientFactory:
@@ -195,6 +257,8 @@ class DiscreteGradientFactory:
             return MeanValueDiscreteGradient()
         elif type == "CoordInc":
             return CoordIncDiscreteGradient()
+        elif type == "Debug":
+            return DebugDiscreteGradient()
         else:
             raise ValueError(f"Unsupported discrete gradient type: {type}")
 
@@ -238,6 +302,7 @@ def Gonzalez_discrete_gradient(
     discrete_gradient = midpoint_jacobian
     increment = argument_n1 - argument_n
     denominator = increment.T @ increment
+    # print(func_n1[0] - func_n[0])
     if denominator > denominator_tolerance:
         for index in range(midpoint_jacobian.shape[0]):
             discrete_gradient[index, :] += (
@@ -249,6 +314,7 @@ def Gonzalez_discrete_gradient(
                 / denominator
                 * increment.T
             )
+            # print(discrete_gradient[index, :])
         result = discrete_gradient
 
     else:
