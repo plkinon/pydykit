@@ -268,7 +268,8 @@ class ParticleSystem(MultiBodySystem):
 
     @staticmethod
     def _spring_energy(stiffness, equilibrium_length, start, end):
-        vector = end - start
+        # vector = end - start # old
+        vector = start  # new
         return 0.5 * stiffness * (vector.T @ vector - equilibrium_length**2) ** 2
 
     def internal_potential(self):
