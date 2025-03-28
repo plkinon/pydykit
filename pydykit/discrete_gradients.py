@@ -158,20 +158,13 @@ class CoordIncDiscreteGradient(abstract_base_classes.DiscreteGradient):
         increment_tolerance: float = 1e-12,
         **kwargs,
     ) -> np.ndarray:
-        systems = kwargs["external_systems"]
+        state_n = system_n.state
+        state_n1 = system_n1.state
         evaluate_func = lambda state: getattr(system_n.copy(state=state), func_name)()
         # initialize with midpoint jacobian
         midpoint_jacobian = getattr(system_n05, jacobian_name)()
         discrete_gradient = midpoint_jacobian
         # compute coord-inc-gradient
-        for i in range(0, 3):
-            denom = argument_n1[i] - argument_n[i]
-            if denom > 1e-8:
-                discrete_gradient[i] = (
-                    getattr(systems[i + 1], func_name)()
-                    - getattr(systems[i], func_name)()
-                ) / (argument_n1[i] - argument_n[i])
-        """
         for i in range(discrete_gradient.shape[0]):
             arg1, arg2 = arguments_coord_inc(index=i, x0=state_n, x1=state_n1)
             current_variable_initial, current_variable_inc = (
@@ -186,7 +179,6 @@ class CoordIncDiscreteGradient(abstract_base_classes.DiscreteGradient):
             discrete_gradient[i] = (evaluate_func(arg1) - evaluate_func(arg2)) / (
                 current_variable_inc - current_variable_initial
             )
-        """
         return discrete_gradient.squeeze()
 
 
