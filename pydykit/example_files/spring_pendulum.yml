@@ -34,7 +34,7 @@ integrator:
   increment_tolerance: 1.e-12
   gauss_integrator: 2-Point
   scipy_accuracy: 1.e-12
-  discrete_gradient_type: MeanValue
+  discrete_gradient_type: CoordinateIncrement
 time_stepper:
   class_name: FixedIncrement
   step_size: 0.02 # 0.1
