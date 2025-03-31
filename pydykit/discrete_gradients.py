@@ -175,7 +175,7 @@ class DiscreteGradientFactory:
             return GonzalezDecomposedDiscreteGradient()
         elif type == "MeanValue":
             return MeanValueDiscreteGradient()
-        elif type == "CoordInc":
+        elif type == "CoordinateIncrement":
             return CoordIncDiscreteGradient()
         else:
             raise ValueError(f"Unsupported discrete gradient type: {type}")

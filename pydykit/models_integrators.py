@@ -21,7 +21,7 @@ class DiscreteGradientBase(IntegratorModel):
 
     increment_tolerance: NonNegativeFloat
     discrete_gradient_type: Literal[
-        "Gonzalez_decomposed", "Gonzalez", "MeanValue", "CoordInc", "Debug"
+        "Gonzalez_decomposed", "Gonzalez", "MeanValue", "CoordinateIncrement"
     ]
 
 
