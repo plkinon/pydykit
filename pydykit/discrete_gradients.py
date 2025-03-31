@@ -105,7 +105,6 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
         integration_method = kwargs.pop("gauss_integrator", "5-Point")
         match integration_method:
             case "Scipy":
-                print("scipy")
                 accuracy = kwargs.pop("scipy_accuracy", 1e-12)
                 discrete_gradient = np.array(
                     [
@@ -122,7 +121,6 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
                 )
             case _:
                 quad_order = int(integration_method[0])
-                print(quad_order)
                 discrete_gradient = gauss_integrate_function(
                     func=evaluate, quad_order=quad_order
                 )
@@ -222,7 +220,6 @@ def Gonzalez_discrete_gradient(
     discrete_gradient = midpoint_jacobian
     increment = argument_n1 - argument_n
     denominator = increment.T @ increment
-    # print(func_n1[0] - func_n[0])
     if denominator > denominator_tolerance:
         for index in range(midpoint_jacobian.shape[0]):
             discrete_gradient[index, :] += (
@@ -234,7 +231,6 @@ def Gonzalez_discrete_gradient(
                 / denominator
                 * increment.T
             )
-            # print(discrete_gradient[index, :])
         result = discrete_gradient
 
     else:
