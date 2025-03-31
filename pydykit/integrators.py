@@ -1,6 +1,7 @@
 import numpy as np
 
 from . import abstract_base_classes, discrete_gradients, utils
+from .discrete_gradients import arguments_coord_inc
 
 
 class IntegratorCommon(abstract_base_classes.Integrator):
@@ -297,11 +298,15 @@ class DiscreteGradientMultibody(IntegratorCommon):
         self,
         manager,
         increment_tolerance,
+        gauss_integrator,
+        scipy_accuracy,
         discrete_gradient_type,
     ):
         super().__init__(manager)
         self.increment_tolerance = increment_tolerance
         self.discrete_gradient_type = discrete_gradient_type
+        self.gauss_integrator = gauss_integrator
+        self.scipy_accuracy = scipy_accuracy
 
     def get_residuum(self, next_state):
 
@@ -323,7 +328,6 @@ class DiscreteGradientMultibody(IntegratorCommon):
                 state_n05,
             ],
         )
-
         # get inverse mass matrix
         try:
             inv_mass_matrix_n05 = system_n05.inverse_mass_matrix()
@@ -357,8 +361,9 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
+            gauss_integrator=self.gauss_integrator,
+            scipy_accuracy=self.scipy_accuracy,
         )
-
         DV_int = discrete_gradients.discrete_gradient(
             system_n=system_n,
             system_n1=system_n1,
@@ -369,8 +374,9 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
+            gauss_integrator=self.gauss_integrator,
+            scipy_accuracy=self.scipy_accuracy,
         )
-
         DV_ext = discrete_gradients.discrete_gradient(
             system_n=system_n,
             system_n1=system_n1,
@@ -381,6 +387,8 @@ class DiscreteGradientMultibody(IntegratorCommon):
             argument_n1=q_n1,
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
+            gauss_integrator=self.gauss_integrator,
+            scipy_accuracy=self.scipy_accuracy,
         )
 
         # residuum contributions

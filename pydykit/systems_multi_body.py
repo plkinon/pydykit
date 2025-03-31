@@ -273,14 +273,24 @@ class ParticleSystem(MultiBodySystem):
 
     def internal_potential(self):
         q = self.decompose_state()["position"]
-        position_vectors = self.decompose_into_particles(q)
-
+        position_vectors = dict(
+            particle=self.decompose_into_particles(q),
+            support=self.get_positions_supports(),
+        )
         contributions = [
             self._spring_energy(
                 stiffness=spring["stiffness"],
                 equilibrium_length=spring["equilibrium_length"],
-                start=position_vectors[spring["start"]["index"]],
-                end=position_vectors[spring["end"]["index"]],
+                start=utils.select(
+                    position_vectors=position_vectors,
+                    element=spring,
+                    endpoint="start",
+                ),
+                end=utils.select(
+                    position_vectors=position_vectors,
+                    element=spring,
+                    endpoint="end",
+                ),
             )
             for spring in self.springs
         ]

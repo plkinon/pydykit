@@ -1,6 +1,10 @@
-import numpy as np
+import time
+from typing import Tuple
 
-from . import abstract_base_classes
+import numpy as np
+import scipy.integrate
+
+from . import abstract_base_classes, utils
 
 
 class GonzalezDiscreteGradient(abstract_base_classes.DiscreteGradient):
@@ -22,7 +26,6 @@ class GonzalezDiscreteGradient(abstract_base_classes.DiscreteGradient):
         midpoint_jacobian, func_n, func_n1 = adjust_midpoint_jacobian(
             midpoint_jacobian, func_n, func_n1
         )
-
         return Gonzalez_discrete_gradient(
             func_n,
             func_n1,
@@ -76,6 +79,91 @@ class GonzalezDecomposedDiscreteGradient(abstract_base_classes.DiscreteGradient)
         return np.concatenate(discrete_gradient, axis=0)
 
 
+class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
+    def compute(
+        self,
+        system_n,
+        system_n1,
+        system_n05,
+        func_name: str,
+        jacobian_name: str,
+        argument_n: np.ndarray,
+        argument_n1: np.ndarray,
+        increment_tolerance: float = 1e-12,
+        **kwargs,
+    ) -> np.ndarray:
+        # define gradient-function
+        evaluate = lambda interpolation_value: getattr(
+            utils.interpolate_system(
+                system=system_n,
+                x0=argument_n,
+                x1=argument_n1,
+                interpolation_value=interpolation_value,
+            ),
+            jacobian_name,
+        )()
+        integration_method = kwargs.pop("gauss_integrator", "5-Point")
+        match integration_method:
+            case "Scipy":
+                accuracy = kwargs.pop("scipy_accuracy", 1e-12)
+                discrete_gradient = np.array(
+                    [
+                        scipy.integrate.quad(
+                            func=get_ith_entry,
+                            args=(evaluate, i),
+                            a=0,
+                            b=1,
+                            epsabs=accuracy,
+                            epsrel=accuracy,
+                        )[0]
+                        for i in range(argument_n.shape[0])
+                    ]
+                )
+            case _:
+                quad_order = int(integration_method[0])
+                discrete_gradient = gauss_integrate_function(
+                    func=evaluate, quad_order=quad_order
+                )
+
+        return discrete_gradient.squeeze()
+
+
+class CoordIncDiscreteGradient(abstract_base_classes.DiscreteGradient):
+    def compute(
+        self,
+        system_n,
+        system_n1,
+        system_n05,
+        func_name: str,
+        jacobian_name: str,
+        argument_n: np.ndarray,
+        argument_n1: np.ndarray,
+        increment_tolerance: float = 1e-12,
+        **kwargs,
+    ) -> np.ndarray:
+        state_n = system_n.state
+        state_n1 = system_n1.state
+        evaluate_func = lambda state: getattr(system_n.copy(state=state), func_name)()
+        # initialize with midpoint jacobian
+        midpoint_jacobian = getattr(system_n05, jacobian_name)()
+        discrete_gradient = midpoint_jacobian
+        # compute coord-inc-gradient
+        for i in range(discrete_gradient.shape[0]):
+            arg1, arg2 = arguments_coord_inc(index=i, x0=state_n, x1=state_n1)
+            current_variable_initial, current_variable_inc = (
+                state_n[i],
+                state_n1[i],
+            )
+            if (
+                abs(current_variable_inc - current_variable_initial)
+                > increment_tolerance
+            ):
+                discrete_gradient[i] = (evaluate_func(arg1) - evaluate_func(arg2)) / (
+                    current_variable_inc - current_variable_initial
+                )
+        return discrete_gradient.squeeze()
+
+
 class DiscreteGradientFactory:
     """Factory for creating discrete gradient instances."""
 
@@ -85,6 +173,10 @@ class DiscreteGradientFactory:
             return GonzalezDiscreteGradient()
         elif type == "Gonzalez_decomposed":
             return GonzalezDecomposedDiscreteGradient()
+        elif type == "MeanValue":
+            return MeanValueDiscreteGradient()
+        elif type == "CoordinateIncrement":
+            return CoordIncDiscreteGradient()
         else:
             raise ValueError(f"Unsupported discrete gradient type: {type}")
 
@@ -128,9 +220,7 @@ def Gonzalez_discrete_gradient(
     discrete_gradient = midpoint_jacobian
     increment = argument_n1 - argument_n
     denominator = increment.T @ increment
-
     if denominator > denominator_tolerance:
-
         for index in range(midpoint_jacobian.shape[0]):
             discrete_gradient[index, :] += (
                 (
@@ -141,12 +231,10 @@ def Gonzalez_discrete_gradient(
                 / denominator
                 * increment.T
             )
-
         result = discrete_gradient
 
     else:
         result = midpoint_jacobian
-
     return result.squeeze()
 
 
@@ -159,3 +247,76 @@ def adjust_midpoint_jacobian(midpoint_jacobian, func_n, func_n1):
             np.array([func_n1]),
         )
     return midpoint_jacobian, func_n, func_n1
+
+
+def interpolate_vectors(loc: float, vec1: np.ndarray, vec2: np.ndarray) -> np.ndarray:
+    """Helper function to linearly interpolate between vectors vec1 and vec2"""
+    return np.multiply(1 - loc, vec1) + np.multiply(loc, vec2)
+
+
+def gauss_integrate_function(func, quad_order) -> np.ndarray:
+    """Helper function to integrate func(x) from x=0 to x=1 using gauss integration"""
+    x_i, weights = gauss_constants(quad_order)
+    contributions = [func(0.5 * x + 0.5) * weight for x, weight in zip(x_i, weights)]
+    return 0.5 * np.add.reduce(contributions)
+
+
+def gauss_constants(quad_order):
+    """returns (x_i, weights) as a tuple"""
+    return {
+        2: (np.array([-1 / np.sqrt(3), 1 / np.sqrt(3)]), np.array([1, 1])),
+        3: (
+            np.array([-np.sqrt(3 / 5), 0, np.sqrt(3 / 5)]),
+            np.array([5 / 9, 8 / 9, 5 / 9]),
+        ),
+        4: (
+            np.array(
+                [
+                    -np.sqrt(3 / 7 + 2 / 7 * np.sqrt(6 / 5)),
+                    -np.sqrt(3 / 7 - 2 / 7 * np.sqrt(6 / 5)),
+                    np.sqrt(3 / 7 - 2 / 7 * np.sqrt(6 / 5)),
+                    np.sqrt(3 / 7 + 2 / 7 * np.sqrt(6 / 5)),
+                ]
+            ),
+            np.array(
+                [
+                    (18 - np.sqrt(30)) / (36),
+                    (18 + np.sqrt(30)) / (36),
+                    (18 + np.sqrt(30)) / (36),
+                    (18 - np.sqrt(30)) / (36),
+                ]
+            ),
+        ),
+        5: (
+            np.array(
+                [
+                    -np.sqrt(5 + 2 * np.sqrt(10 / 7)) / 3,
+                    -np.sqrt(5 - 2 * np.sqrt(10 / 7)) / 3,
+                    0,
+                    np.sqrt(5 - 2 * np.sqrt(10 / 7)) / 3,
+                    np.sqrt(5 + 2 * np.sqrt(10 / 7)) / 3,
+                ]
+            ),
+            np.array(
+                [
+                    (322 - 13 * np.sqrt(70)) / (900),
+                    (322 + 13 * np.sqrt(70)) / (900),
+                    128 / 225,
+                    (322 + 13 * np.sqrt(70)) / (900),
+                    (322 - 13 * np.sqrt(70)) / (900),
+                ]
+            ),
+        ),
+    }.pop(quad_order)
+
+
+def arguments_coord_inc(index, x0, x1) -> Tuple[np.ndarray, np.ndarray]:
+    return (
+        np.array([*x1[: index + 1], *x0[index + 1 :]]),
+        np.array([*x1[:index], *x0[index:]]),
+    )
+
+
+def get_ith_entry(arg, vector_function, i):
+    """return i-th entry of a single-parameter vector function"""
+    return vector_function(arg)[i]
