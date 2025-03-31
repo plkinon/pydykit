@@ -102,9 +102,10 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
             ),
             jacobian_name,
         )()
-        integration_method = kwargs.pop("integration_method", "5-point")
+        integration_method = kwargs.pop("gauss_integrator", "5-Point")
         match integration_method:
-            case "scipy":
+            case "Scipy":
+                print("scipy")
                 accuracy = kwargs.pop("scipy_accuracy", 1e-12)
                 discrete_gradient = np.array(
                     [
@@ -120,7 +121,8 @@ class MeanValueDiscreteGradient(abstract_base_classes.DiscreteGradient):
                     ]
                 )
             case _:
-                quad_order = 5
+                quad_order = int(integration_method[0])
+                print(quad_order)
                 discrete_gradient = gauss_integrate_function(
                     func=evaluate, quad_order=quad_order
                 )
@@ -270,6 +272,24 @@ def gauss_constants(quad_order):
         3: (
             np.array([-np.sqrt(3 / 5), 0, np.sqrt(3 / 5)]),
             np.array([5 / 9, 8 / 9, 5 / 9]),
+        ),
+        4: (
+            np.array(
+                [
+                    -np.sqrt(3 / 7 + 2 / 7 * np.sqrt(6 / 5)),
+                    -np.sqrt(3 / 7 - 2 / 7 * np.sqrt(6 / 5)),
+                    np.sqrt(3 / 7 - 2 / 7 * np.sqrt(6 / 5)),
+                    np.sqrt(3 / 7 + 2 / 7 * np.sqrt(6 / 5)),
+                ]
+            ),
+            np.array(
+                [
+                    (18 - np.sqrt(30)) / (36),
+                    (18 + np.sqrt(30)) / (36),
+                    (18 + np.sqrt(30)) / (36),
+                    (18 - np.sqrt(30)) / (36),
+                ]
+            ),
         ),
         5: (
             np.array(

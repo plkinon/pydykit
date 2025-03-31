@@ -32,7 +32,9 @@ integrator:
   # class_name: MidpointMultibody
   class_name: DiscreteGradientMultibody
   increment_tolerance: 1.e-12
-  discrete_gradient_type: CoordInc
+  gauss_integrator: 2-Point
+  scipy_accuracy: 1.e-12
+  discrete_gradient_type: MeanValue
 time_stepper:
   class_name: FixedIncrement
   step_size: 0.02 # 0.1

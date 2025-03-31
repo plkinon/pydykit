@@ -20,6 +20,8 @@ class MidpointDAE(IntegratorModel):
 class DiscreteGradientBase(IntegratorModel):
 
     increment_tolerance: NonNegativeFloat
+    gauss_integrator: Literal["2-Point", "3-Point", "4-Point", "5-Point", "Scipy"]
+    scipy_accuracy: NonNegativeFloat
     discrete_gradient_type: Literal[
         "Gonzalez_decomposed", "Gonzalez", "MeanValue", "CoordinateIncrement"
     ]
