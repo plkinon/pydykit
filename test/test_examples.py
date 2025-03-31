@@ -23,6 +23,8 @@ worklist = [
     "lorenz",
     "reactor",
     "four_particle_system_ph_discrete_gradient_dissipative",
+    "spring_pendulum_coordinate_increment_dg",
+    "spring_pendulum_mean_value_dg",
 ]
 
 phmbs = [
