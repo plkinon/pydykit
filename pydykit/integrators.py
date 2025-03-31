@@ -347,7 +347,6 @@ class DiscreteGradientMultibody(IntegratorCommon):
         lambd_n05 = system_n05.decompose_state()["multiplier"]
 
         # discrete gradients
-        # print("--- G_DG ---")
         G_DG = discrete_gradients.discrete_gradient(
             system_n=system_n,
             system_n1=system_n1,
@@ -359,7 +358,6 @@ class DiscreteGradientMultibody(IntegratorCommon):
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
         )
-        # print("--- DV_int ---")
         DV_int = discrete_gradients.discrete_gradient(
             system_n=system_n,
             system_n1=system_n1,
@@ -371,7 +369,6 @@ class DiscreteGradientMultibody(IntegratorCommon):
             type=self.discrete_gradient_type,
             increment_tolerance=self.increment_tolerance,
         )
-        # print("--- DV_ext ---")
         DV_ext = discrete_gradients.discrete_gradient(
             system_n=system_n,
             system_n1=system_n1,
